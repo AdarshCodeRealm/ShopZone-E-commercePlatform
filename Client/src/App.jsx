@@ -8,23 +8,38 @@ import ProductDetail from '@/components/ProductDetail'
 import Login from '@/components/Login'
 import Signup from '@/components/Signup'
 import ForgotPassword from '@/components/ForgotPassword'
+import UserProfile from '@/components/UserProfile'
+import MyOrders from '@/components/MyOrders'
+import OrderHistory from '@/components/OrderHistory'
 import './index.css'
 
 function App() {
   const [isCartOpen, setIsCartOpen] = useState(false)
-  const [isWishlistOpen, setIsWishlistOpen] = useState(false)
   const [authModal, setAuthModal] = useState(null) // 'login', 'signup', 'forgot', or null
+  const [currentView, setCurrentView] = useState('home') // 'home', 'profile', 'orders', 'history'
 
   const handleCartClick = () => {
     setIsCartOpen(true)
   }
 
-  const handleWishlistClick = () => {
-    setIsWishlistOpen(true)
-  }
-
   const handleLoginClick = () => {
     setAuthModal('login')
+  }
+
+  const handleProfileClick = () => {
+    setCurrentView('profile')
+  }
+
+  const handleOrdersClick = () => {
+    setCurrentView('orders')
+  }
+
+  const handleHistoryClick = () => {
+    setCurrentView('history')
+  }
+
+  const handleBackToHome = () => {
+    setCurrentView('home')
   }
 
   const handleCloseAuthModal = () => {
@@ -43,17 +58,34 @@ function App() {
     setAuthModal('forgot')
   }
 
+  const renderCurrentView = () => {
+    switch (currentView) {
+      case 'profile':
+        return <UserProfile onBackToHome={handleBackToHome} />
+      case 'orders':
+        return <MyOrders onBackToHome={handleBackToHome} />
+      case 'history':
+        return <OrderHistory onBackToHome={handleBackToHome} />
+      default:
+        return <ProductGrid />
+    }
+  }
+
   return (
     <Provider store={store}>
       <div className="min-h-screen bg-gray-50">
         <Header 
           onCartClick={handleCartClick}
-          onWishlistClick={handleWishlistClick}
           onLoginClick={handleLoginClick}
+          onProfileClick={handleProfileClick}
+          onOrdersClick={handleOrdersClick}
+          onHistoryClick={handleHistoryClick}
+          currentView={currentView}
+          onBackToHome={handleBackToHome}
         />
         
         <main className="pb-8">
-          <ProductGrid />
+          {renderCurrentView()}
         </main>
 
         {/* Cart Component */}

@@ -8,8 +8,6 @@ const initialState = {
   otpSent: false,
   emailForOtp: null,
   isVerifyingOtp: false,
-  resetPasswordEmail: null,
-  resetPasswordOtpSent: false,
   isResettingPassword: false,
 }
 
@@ -68,15 +66,13 @@ const authSlice = createSlice({
       state.error = action.payload
     },
     
-    // Forgot Password Actions
+    // Forgot Password Actions (Simplified - no OTP)
     forgotPasswordStart: (state) => {
       state.loading = true
       state.error = null
     },
     forgotPasswordSuccess: (state, action) => {
       state.loading = false
-      state.resetPasswordEmail = action.payload.email
-      state.resetPasswordOtpSent = true
     },
     forgotPasswordFailure: (state, action) => {
       state.loading = false
@@ -90,8 +86,6 @@ const authSlice = createSlice({
     },
     resetPasswordSuccess: (state) => {
       state.isResettingPassword = false
-      state.resetPasswordEmail = null
-      state.resetPasswordOtpSent = false
     },
     resetPasswordFailure: (state, action) => {
       state.isResettingPassword = false
@@ -104,8 +98,6 @@ const authSlice = createSlice({
       state.isAuthenticated = false
       state.otpSent = false
       state.emailForOtp = null
-      state.resetPasswordEmail = null
-      state.resetPasswordOtpSent = false
       localStorage.removeItem('user')
       localStorage.removeItem('token')
     },
@@ -115,7 +107,7 @@ const authSlice = createSlice({
       state.error = null
     },
     
-    // Resend OTP
+    // Resend OTP (for signup only)
     resendOtpStart: (state) => {
       state.loading = true
       state.error = null
@@ -124,6 +116,40 @@ const authSlice = createSlice({
       state.loading = false
     },
     resendOtpFailure: (state, action) => {
+      state.loading = false
+      state.error = action.payload
+    },
+
+    // Avatar Update Actions
+    updateAvatarStart: (state) => {
+      state.loading = true
+      state.error = null
+    },
+    updateAvatarSuccess: (state, action) => {
+      state.loading = false
+      if (state.user) {
+        state.user.avatar = action.payload.avatar_url
+        localStorage.setItem('user', JSON.stringify(state.user))
+      }
+    },
+    updateAvatarFailure: (state, action) => {
+      state.loading = false
+      state.error = action.payload
+    },
+    
+    // Profile Update Actions
+    updateProfileStart: (state) => {
+      state.loading = true
+      state.error = null
+    },
+    updateProfileSuccess: (state, action) => {
+      state.loading = false
+      if (state.user) {
+        state.user = { ...state.user, ...action.payload }
+        localStorage.setItem('user', JSON.stringify(state.user))
+      }
+    },
+    updateProfileFailure: (state, action) => {
       state.loading = false
       state.error = action.payload
     },
@@ -151,6 +177,12 @@ export const {
   resendOtpStart,
   resendOtpSuccess,
   resendOtpFailure,
+  updateAvatarStart,
+  updateAvatarSuccess,
+  updateAvatarFailure,
+  updateProfileStart,
+  updateProfileSuccess,
+  updateProfileFailure,
 } = authSlice.actions
 
 export default authSlice.reducer

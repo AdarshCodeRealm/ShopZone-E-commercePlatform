@@ -17,7 +17,7 @@ const ProductCard = ({ product }) => {
       id: product.id,
       name: product.name,
       price: product.price,
-      image: product.image,
+      image: product.image || product.image_url || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400',
       quantity: 1
     }))
   }
@@ -27,11 +27,12 @@ const ProductCard = ({ product }) => {
   }
 
   const renderStars = (rating) => {
+    const numRating = parseFloat(rating) || 0
     return Array.from({ length: 5 }, (_, i) => (
       <Star
         key={i}
         className={`h-4 w-4 ${
-          i < Math.floor(rating) 
+          i < Math.floor(numRating) 
             ? 'fill-yellow-400 text-yellow-400' 
             : 'text-gray-300'
         }`}
@@ -39,9 +40,16 @@ const ProductCard = ({ product }) => {
     ))
   }
 
-  const discountPercentage = product.originalPrice 
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+  const originalPrice = product.original_price || product.originalPrice
+  const currentPrice = product.price
+  const discountPercentage = originalPrice && originalPrice > currentPrice
+    ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100)
     : 0
+
+  const isInStock = product.in_stock !== undefined ? product.in_stock : product.inStock !== false
+  const productRating = product.rating || 0
+  const productReviews = product.reviews || product.review_count || 0
+  const productTags = product.tags || []
 
   return (
     <Card 
@@ -50,24 +58,30 @@ const ProductCard = ({ product }) => {
     >
       <div className="relative overflow-hidden">
         <img
-          src={product.image}
-          alt={product.name}
+          src={product.image || product.image_url || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400'}
+          alt={product.name || 'Product'}
           className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-200"
+          onError={(e) => {
+            e.target.src = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400'
+          }}
         />
         
         {/* Badges */}
         <div className="absolute top-2 left-2 flex flex-col gap-1">
-          {!product.inStock && (
+          {!isInStock && (
             <Badge variant="destructive">Out of Stock</Badge>
           )}
           {discountPercentage > 0 && (
             <Badge className="bg-red-500">{discountPercentage}% OFF</Badge>
           )}
-          {product.tags?.includes('new') && (
+          {productTags.includes('new') && (
             <Badge className="bg-green-500">New</Badge>
           )}
-          {product.tags?.includes('bestseller') && (
+          {productTags.includes('bestseller') && (
             <Badge className="bg-blue-500">Bestseller</Badge>
+          )}
+          {productTags.includes('featured') && (
+            <Badge className="bg-purple-500">Featured</Badge>
           )}
         </div>
 
@@ -84,28 +98,30 @@ const ProductCard = ({ product }) => {
 
       <CardContent className="p-4 flex-1">
         <div className="space-y-2">
-          <Badge variant="outline">{product.category}</Badge>
-          <h3 className="font-semibold text-lg line-clamp-1">{product.name}</h3>
-          <p className="text-sm text-gray-600 line-clamp-2">{product.description}</p>
+          <Badge variant="outline">{product.category || 'General'}</Badge>
+          <h3 className="font-semibold text-lg line-clamp-1">{product.name || 'Product Name'}</h3>
+          <p className="text-sm text-gray-600 line-clamp-2">{product.description || 'No description available'}</p>
           
           {/* Rating */}
-          <div className="flex items-center gap-1">
-            <div className="flex items-center">
-              {renderStars(product.rating)}
+          {productRating > 0 && (
+            <div className="flex items-center gap-1">
+              <div className="flex items-center">
+                {renderStars(productRating)}
+              </div>
+              <span className="text-sm text-gray-500">
+                {productRating} {productReviews > 0 && `(${productReviews} reviews)`}
+              </span>
             </div>
-            <span className="text-sm text-gray-500">
-              {product.rating} ({product.reviews} reviews)
-            </span>
-          </div>
+          )}
 
           {/* Price */}
           <div className="flex items-center gap-2">
             <span className="text-xl font-bold text-gray-900">
-              {formatCurrency(product.price)}
+              {formatCurrency(currentPrice)}
             </span>
-            {product.originalPrice && product.originalPrice > product.price && (
+            {originalPrice && originalPrice > currentPrice && (
               <span className="text-sm text-gray-500 line-through">
-                {formatCurrency(product.originalPrice)}
+                {formatCurrency(originalPrice)}
               </span>
             )}
           </div>
@@ -115,11 +131,11 @@ const ProductCard = ({ product }) => {
       <CardFooter className="p-4 pt-0">
         <Button
           onClick={handleAddToCart}
-          disabled={!product.inStock}
+          disabled={!isInStock}
           className="w-full"
         >
           <ShoppingCart className="h-4 w-4 mr-2" />
-          {product.inStock ? 'Add to Cart' : 'Out of Stock'}
+          {isInStock ? 'Add to Cart' : 'Out of Stock'}
         </Button>
       </CardFooter>
     </Card>

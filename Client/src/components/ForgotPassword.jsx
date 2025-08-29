@@ -13,47 +13,35 @@ import {
   resetPasswordFailure,
   clearError 
 } from '@/store/slices/authSlice'
+import { useForgotPasswordMutation, useResetPasswordMutation } from '@/store/api/apiSlice'
 import { X, Mail, Lock, Eye, EyeOff } from 'lucide-react'
 
 const ForgotPassword = ({ isOpen, onClose, onSwitchToLogin }) => {
   const dispatch = useDispatch()
-  const { loading, error, resetPasswordOtpSent, resetPasswordEmail, isResettingPassword } = useSelector(state => state.auth)
+  const { loading, error, isResettingPassword } = useSelector(state => state.auth)
+  const [forgotPasswordMutation] = useForgotPasswordMutation()
+  const [resetPasswordMutation] = useResetPasswordMutation()
   
-  const [step, setStep] = useState('email') // 'email', 'otp', 'reset'
+  const [step, setStep] = useState('email') // 'email' or 'reset'
   const [email, setEmail] = useState('')
-  const [otp, setOtp] = useState(['', '', '', '', '', ''])
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [formErrors, setFormErrors] = useState({})
-  const [otpTimer, setOtpTimer] = useState(0)
+  const [successMessage, setSuccessMessage] = useState('')
 
   useEffect(() => {
     if (isOpen) {
       setEmail('')
-      setOtp(['', '', '', '', '', ''])
       setNewPassword('')
       setConfirmPassword('')
       setFormErrors({})
+      setSuccessMessage('')
       setStep('email')
       dispatch(clearError())
     }
   }, [isOpen, dispatch])
-
-  useEffect(() => {
-    if (resetPasswordOtpSent) {
-      setStep('otp')
-      setOtpTimer(60)
-    }
-  }, [resetPasswordOtpSent])
-
-  useEffect(() => {
-    if (otpTimer > 0) {
-      const timer = setTimeout(() => setOtpTimer(otpTimer - 1), 1000)
-      return () => clearTimeout(timer)
-    }
-  }, [otpTimer])
 
   const validateEmail = () => {
     const errors = {}
@@ -61,7 +49,7 @@ const ForgotPassword = ({ isOpen, onClose, onSwitchToLogin }) => {
     if (!email) {
       errors.email = 'Email is required'
     } else if (!/\S+@\S+\.\S+/.test(email)) {
-      errors.email = 'Email is invalid'
+      errors.email = 'Please enter a valid email address'
     }
     
     setFormErrors(errors)
@@ -78,7 +66,7 @@ const ForgotPassword = ({ isOpen, onClose, onSwitchToLogin }) => {
     }
     
     if (!confirmPassword) {
-      errors.confirmPassword = 'Confirm password is required'
+      errors.confirmPassword = 'Please confirm your password'
     } else if (newPassword !== confirmPassword) {
       errors.confirmPassword = 'Passwords do not match'
     }
@@ -93,33 +81,17 @@ const ForgotPassword = ({ isOpen, onClose, onSwitchToLogin }) => {
     if (!validateEmail()) return
 
     dispatch(forgotPasswordStart())
+    setSuccessMessage('')
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500))
+      await forgotPasswordMutation(email).unwrap()
       
-      // Mock successful forgot password request
       dispatch(forgotPasswordSuccess({ email }))
-    } catch (err) {
-      dispatch(forgotPasswordFailure('Failed to send reset email. Please try again.'))
-    }
-  }
-
-  const handleOtpVerify = (e) => {
-    e.preventDefault()
-    
-    const otpValue = otp.join('')
-    if (otpValue.length !== 6) {
-      setFormErrors({ otp: 'Please enter complete OTP' })
-      return
-    }
-
-    // Mock OTP verification for forgot password
-    if (otpValue === '654321') { // Different mock OTP for password reset
       setStep('reset')
-      setFormErrors({})
-    } else {
-      setFormErrors({ otp: 'Invalid OTP. Please try again.' })
+      setSuccessMessage('Password reset instructions sent! You can now create a new password.')
+    } catch (err) {
+      const errorMessage = err.data?.detail || err.message || 'Failed to send reset email. Please try again.'
+      dispatch(forgotPasswordFailure(errorMessage))
     }
   }
 
@@ -129,111 +101,89 @@ const ForgotPassword = ({ isOpen, onClose, onSwitchToLogin }) => {
     if (!validatePasswordReset()) return
 
     dispatch(resetPasswordStart())
+    setSuccessMessage('')
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      await resetPasswordMutation({
+        email,
+        new_password: newPassword
+      }).unwrap()
       
-      // Mock successful password reset
       dispatch(resetPasswordSuccess())
+      setSuccessMessage('Password reset successfully! You can now login with your new password.')
       
-      // Show success message and redirect to login
+      // Show success message and redirect to login after delay
       setTimeout(() => {
         onClose()
         onSwitchToLogin()
       }, 2000)
     } catch (err) {
-      dispatch(resetPasswordFailure('Failed to reset password. Please try again.'))
-    }
-  }
-
-  const handleResendOtp = async () => {
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      setOtpTimer(60)
-      setOtp(['', '', '', '', '', ''])
-      setFormErrors({})
-    } catch (err) {
-      setFormErrors({ otp: 'Failed to resend OTP' })
-    }
-  }
-
-  const handleOtpChange = (index, value) => {
-    if (value.length <= 1 && /^[0-9]*$/.test(value)) {
-      const newOtp = [...otp]
-      newOtp[index] = value
-      setOtp(newOtp)
-      
-      // Auto focus next input
-      if (value && index < 5) {
-        const nextInput = document.getElementById(`reset-otp-${index + 1}`)
-        if (nextInput) nextInput.focus()
-      }
-    }
-  }
-
-  const handleOtpKeyDown = (index, e) => {
-    if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      const prevInput = document.getElementById(`reset-otp-${index - 1}`)
-      if (prevInput) prevInput.focus()
+      const errorMessage = err.data?.detail || err.message || 'Failed to reset password. Please try again.'
+      dispatch(resetPasswordFailure(errorMessage))
     }
   }
 
   if (!isOpen) return null
 
-  const getStepTitle = () => {
-    switch (step) {
-      case 'email': return 'Forgot Password'
-      case 'otp': return 'Verify Email'
-      case 'reset': return 'Reset Password'
-      default: return 'Forgot Password'
-    }
-  }
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white max-w-md w-full rounded-lg">
-        <Card className="border-0 rounded-lg">
-          <CardHeader className="border-b">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-2xl">{getStepTitle()}</CardTitle>
-              <Button variant="ghost" size="sm" onClick={onClose}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="w-full max-w-md">
+        <Card>
+          <CardHeader className="relative">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute right-2 top-2"
+              onClick={onClose}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+            <CardTitle className="text-center">
+              {step === 'email' ? 'Reset Password' : 'Create New Password'}
+            </CardTitle>
+            <p className="text-sm text-gray-600 text-center">
+              {step === 'email' 
+                ? 'Enter your email to reset your password' 
+                : 'Enter your new password below'
+              }
+            </p>
           </CardHeader>
-
-          <CardContent className="p-6">
-            {step === 'email' && (
-              <form onSubmit={handleEmailSubmit} className="space-y-4">
+          <CardContent>
+            {step === 'email' ? (
+              <form onSubmit={handleEmailSubmit} className="space-y-6">
                 {error && (
                   <div className="p-3 bg-red-50 border border-red-200 rounded-md">
                     <p className="text-sm text-red-600">{error}</p>
                   </div>
                 )}
 
+                {successMessage && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                    <p className="text-sm text-green-600">{successMessage}</p>
+                  </div>
+                )}
+
                 <div className="space-y-2">
-                  <p className="text-sm text-gray-600 mb-4">
-                    Enter your email address and we'll send you a verification code to reset your password.
-                  </p>
-                  
-                  <label className="text-sm font-medium text-gray-700">Email Address</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    Email Address
+                  </label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
                       type="email"
                       placeholder="Enter your email"
                       value={email}
                       onChange={(e) => {
                         setEmail(e.target.value)
-                        if (formErrors.email) setFormErrors({})
+                        if (formErrors.email) {
+                          setFormErrors(prev => ({ ...prev, email: '' }))
+                        }
                       }}
-                      className={`pl-10 ${formErrors.email ? 'border-red-500' : ''}`}
-                      disabled={loading}
+                      className={`pl-10 ${formErrors.email ? 'border-red-300' : ''}`}
                     />
                   </div>
                   {formErrors.email && (
-                    <p className="text-xs text-red-500">{formErrors.email}</p>
+                    <p className="text-xs text-red-600">{formErrors.email}</p>
                   )}
                 </div>
 
@@ -246,126 +196,47 @@ const ForgotPassword = ({ isOpen, onClose, onSwitchToLogin }) => {
                   {loading ? (
                     <div className="flex items-center">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Sending...
+                      Sending Reset Instructions...
                     </div>
                   ) : (
-                    'Send Verification Code'
+                    'Send Reset Instructions'
                   )}
                 </Button>
 
                 <div className="text-center">
+                  <span className="text-sm text-gray-600">Remember your password? </span>
                   <Button
                     type="button"
                     variant="link"
-                    className="text-sm"
+                    className="p-0 h-auto text-sm"
                     onClick={onSwitchToLogin}
                   >
-                    ← Back to Login
+                    Back to Login
                   </Button>
                 </div>
               </form>
-            )}
-
-            {step === 'otp' && (
-              <form onSubmit={handleOtpVerify} className="space-y-6">
-                {formErrors.otp && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                    <p className="text-sm text-red-600">{formErrors.otp}</p>
-                  </div>
-                )}
-
-                <div className="text-center space-y-2">
-                  <p className="text-sm text-gray-600">
-                    We've sent a 6-digit verification code to
-                  </p>
-                  <p className="font-medium">{resetPasswordEmail}</p>
-                  <p className="text-xs text-gray-500">
-                    For demo purposes, use: <Badge>654321</Badge>
-                  </p>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex justify-center space-x-2">
-                    {otp.map((digit, index) => (
-                      <Input
-                        key={index}
-                        id={`reset-otp-${index}`}
-                        type="text"
-                        value={digit}
-                        onChange={(e) => handleOtpChange(index, e.target.value)}
-                        onKeyDown={(e) => handleOtpKeyDown(index, e)}
-                        className="w-12 h-12 text-center text-lg font-bold"
-                        maxLength={1}
-                      />
-                    ))}
-                  </div>
-
-                  {otpTimer > 0 ? (
-                    <p className="text-center text-sm text-gray-500">
-                      Resend OTP in {otpTimer} seconds
-                    </p>
-                  ) : (
-                    <div className="text-center">
-                      <Button
-                        type="button"
-                        variant="link"
-                        onClick={handleResendOtp}
-                      >
-                        Resend OTP
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full"
-                  size="lg"
-                  disabled={otp.join('').length !== 6}
-                >
-                  Verify Code
-                </Button>
-
-                <div className="text-center">
-                  <Button
-                    type="button"
-                    variant="link"
-                    className="text-sm"
-                    onClick={() => {
-                      setStep('email')
-                      setFormErrors({})
-                    }}
-                  >
-                    ← Change Email Address
-                  </Button>
-                </div>
-              </form>
-            )}
-
-            {step === 'reset' && (
-              <form onSubmit={handlePasswordReset} className="space-y-4">
+            ) : (
+              <form onSubmit={handlePasswordReset} className="space-y-6">
                 {error && (
                   <div className="p-3 bg-red-50 border border-red-200 rounded-md">
                     <p className="text-sm text-red-600">{error}</p>
                   </div>
                 )}
 
-                {!error && isResettingPassword && (
+                {successMessage && (
                   <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-                    <p className="text-sm text-green-600">Password reset successful! Redirecting to login...</p>
+                    <p className="text-sm text-green-600">{successMessage}</p>
                   </div>
                 )}
 
                 <div className="space-y-2">
-                  <p className="text-sm text-gray-600 mb-4">
-                    Create a new password for your account.
-                  </p>
-                  
-                  <label className="text-sm font-medium text-gray-700">New Password</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    New Password
+                  </label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
-                      type={showNewPassword ? "text" : "password"}
+                      type={showPassword ? "text" : "password"}
                       placeholder="Enter new password"
                       value={newPassword}
                       onChange={(e) => {
@@ -374,28 +245,29 @@ const ForgotPassword = ({ isOpen, onClose, onSwitchToLogin }) => {
                           setFormErrors(prev => ({ ...prev, newPassword: '' }))
                         }
                       }}
-                      className={`pl-10 pr-10 ${formErrors.newPassword ? 'border-red-500' : ''}`}
-                      disabled={isResettingPassword}
+                      className={`pl-10 pr-10 ${formErrors.newPassword ? 'border-red-300' : ''}`}
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="absolute right-0 top-0 h-full px-3"
-                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-2 top-1"
+                      onClick={() => setShowPassword(!showPassword)}
                     >
-                      {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </Button>
                   </div>
                   {formErrors.newPassword && (
-                    <p className="text-xs text-red-500">{formErrors.newPassword}</p>
+                    <p className="text-xs text-red-600">{formErrors.newPassword}</p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Confirm New Password</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    Confirm Password
+                  </label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
                       type={showConfirmPassword ? "text" : "password"}
                       placeholder="Confirm new password"
@@ -406,21 +278,20 @@ const ForgotPassword = ({ isOpen, onClose, onSwitchToLogin }) => {
                           setFormErrors(prev => ({ ...prev, confirmPassword: '' }))
                         }
                       }}
-                      className={`pl-10 pr-10 ${formErrors.confirmPassword ? 'border-red-500' : ''}`}
-                      disabled={isResettingPassword}
+                      className={`pl-10 pr-10 ${formErrors.confirmPassword ? 'border-red-300' : ''}`}
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="absolute right-0 top-0 h-full px-3"
+                      className="absolute right-2 top-1"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     >
                       {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </Button>
                   </div>
                   {formErrors.confirmPassword && (
-                    <p className="text-xs text-red-500">{formErrors.confirmPassword}</p>
+                    <p className="text-xs text-red-600">{formErrors.confirmPassword}</p>
                   )}
                 </div>
 
@@ -428,17 +299,29 @@ const ForgotPassword = ({ isOpen, onClose, onSwitchToLogin }) => {
                   type="submit"
                   className="w-full"
                   size="lg"
-                  disabled={isResettingPassword}
+                  disabled={isResettingPassword || successMessage}
                 >
                   {isResettingPassword ? (
                     <div className="flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                       Resetting Password...
                     </div>
                   ) : (
                     'Reset Password'
                   )}
                 </Button>
+
+                <div className="text-center">
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="p-0 h-auto text-sm"
+                    onClick={() => setStep('email')}
+                    disabled={isResettingPassword}
+                  >
+                    ← Back to Email
+                  </Button>
+                </div>
               </form>
             )}
           </CardContent>

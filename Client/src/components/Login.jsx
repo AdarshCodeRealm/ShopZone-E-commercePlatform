@@ -10,11 +10,13 @@ import {
   loginFailure, 
   clearError 
 } from '@/store/slices/authSlice'
+import { useLoginMutation } from '@/store/api/apiSlice'
 import { X, Eye, EyeOff, Mail, Lock } from 'lucide-react'
 
 const Login = ({ isOpen, onClose, onSwitchToSignup, onSwitchToForgotPassword }) => {
   const dispatch = useDispatch()
   const { loading, error } = useSelector(state => state.auth)
+  const [loginMutation] = useLoginMutation()
   
   const [formData, setFormData] = useState({
     email: '',
@@ -56,25 +58,17 @@ const Login = ({ isOpen, onClose, onSwitchToSignup, onSwitchToForgotPassword }) 
     dispatch(loginStart())
 
     try {
-      // Simulate API call with mock authentication
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      
-      // Mock successful login
-      const mockUser = {
-        id: 1,
-        name: formData.email.split('@')[0],
-        email: formData.email,
-        avatar: `https://ui-avatars.com/api/?name=${formData.email.split('@')[0]}&background=0D8ABC&color=fff`
-      }
+      const result = await loginMutation(formData).unwrap()
       
       dispatch(loginSuccess({
-        user: mockUser,
-        token: 'mock_jwt_token_' + Date.now()
+        user: result.user,
+        token: result.access_token
       }))
       
       onClose()
     } catch (err) {
-      dispatch(loginFailure('Invalid email or password'))
+      const errorMessage = err.data?.detail || err.message || 'Login failed. Please try again.'
+      dispatch(loginFailure(errorMessage))
     }
   }
 
@@ -85,7 +79,6 @@ const Login = ({ isOpen, onClose, onSwitchToSignup, onSwitchToForgotPassword }) 
       [name]: value
     }))
     
-    // Clear field error when user starts typing
     if (formErrors[name]) {
       setFormErrors(prev => ({
         ...prev,
@@ -97,20 +90,25 @@ const Login = ({ isOpen, onClose, onSwitchToSignup, onSwitchToForgotPassword }) 
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white max-w-md w-full rounded-lg">
-        <Card className="border-0 rounded-lg">
-          <CardHeader className="border-b">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-2xl">Login to ShopZone</CardTitle>
-              <Button variant="ghost" size="sm" onClick={onClose}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="w-full max-w-md">
+        <Card>
+          <CardHeader className="relative">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute right-2 top-2"
+              onClick={onClose}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+            <CardTitle className="text-center">Welcome Back</CardTitle>
+            <p className="text-sm text-gray-600 text-center">
+              Sign in to your account
+            </p>
           </CardHeader>
-
-          <CardContent className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
               {error && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-md">
                   <p className="text-sm text-red-600">{error}</p>
@@ -118,60 +116,62 @@ const Login = ({ isOpen, onClose, onSwitchToSignup, onSwitchToForgotPassword }) 
               )}
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Email</label>
+                <label className="text-sm font-medium text-gray-700">
+                  Email Address
+                </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
                     type="email"
                     name="email"
                     placeholder="Enter your email"
                     value={formData.email}
                     onChange={handleInputChange}
-                    className={`pl-10 ${formErrors.email ? 'border-red-500' : ''}`}
-                    disabled={loading}
+                    className={`pl-10 ${formErrors.email ? 'border-red-300' : ''}`}
                   />
                 </div>
                 {formErrors.email && (
-                  <p className="text-xs text-red-500">{formErrors.email}</p>
+                  <p className="text-xs text-red-600">{formErrors.email}</p>
                 )}
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Password</label>
+                <label className="text-sm font-medium text-gray-700">
+                  Password
+                </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                   <Input
                     type={showPassword ? "text" : "password"}
                     name="password"
                     placeholder="Enter your password"
                     value={formData.password}
                     onChange={handleInputChange}
-                    className={`pl-10 pr-10 ${formErrors.password ? 'border-red-500' : ''}`}
-                    disabled={loading}
+                    className={`pl-10 pr-10 ${formErrors.password ? 'border-red-300' : ''}`}
                   />
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="absolute right-0 top-0 h-full px-3"
+                    className="absolute right-2 top-1"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
                 {formErrors.password && (
-                  <p className="text-xs text-red-500">{formErrors.password}</p>
+                  <p className="text-xs text-red-600">{formErrors.password}</p>
                 )}
               </div>
 
-              <div className="flex justify-between items-center">
+              <div className="text-right">
                 <Button
                   type="button"
                   variant="link"
                   className="p-0 h-auto text-sm"
                   onClick={onSwitchToForgotPassword}
                 >
-                  Forgot Password?
+                  Forgot password?
                 </Button>
               </div>
 
@@ -184,10 +184,10 @@ const Login = ({ isOpen, onClose, onSwitchToSignup, onSwitchToForgotPassword }) 
                 {loading ? (
                   <div className="flex items-center">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Logging in...
+                    Signing in...
                   </div>
                 ) : (
-                  'Login'
+                  'Sign In'
                 )}
               </Button>
 

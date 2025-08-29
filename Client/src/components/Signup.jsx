@@ -8,57 +8,40 @@ import {
   signupStart, 
   signupSuccess, 
   signupFailure, 
-  verifyOtpStart,
-  verifyOtpSuccess,
-  verifyOtpFailure,
-  resendOtpStart,
-  resendOtpSuccess,
-  resendOtpFailure,
   clearError 
 } from '@/store/slices/authSlice'
-import { X, Eye, EyeOff, Mail, Lock, User, Phone } from 'lucide-react'
+import { useSignupMutation } from '@/store/api/apiSlice'
+import { X, Eye, EyeOff, Mail, Lock, User, Phone, Upload, MapPin } from 'lucide-react'
 
 const Signup = ({ isOpen, onClose, onSwitchToLogin }) => {
   const dispatch = useDispatch()
-  const { loading, error, otpSent, emailForOtp, isVerifyingOtp } = useSelector(state => state.auth)
+  const { loading, error } = useSelector(state => state.auth)
+  const [signupMutation] = useSignupMutation()
   
-  const [step, setStep] = useState('signup') // 'signup' or 'otp'
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
+    address: '',  // Added address field
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    avatar: null
   })
-  const [otp, setOtp] = useState(['', '', '', '', '', ''])
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [formErrors, setFormErrors] = useState({})
-  const [otpTimer, setOtpTimer] = useState(0)
+  const [avatarPreview, setAvatarPreview] = useState(null)
+
+  const defaultAvatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name || 'User')}&background=6366f1&color=ffffff&size=128`
 
   useEffect(() => {
     if (isOpen) {
-      setFormData({ name: '', email: '', phone: '', password: '', confirmPassword: '' })
-      setOtp(['', '', '', '', '', ''])
+      setFormData({ name: '', email: '', phone: '', address: '', password: '', confirmPassword: '', avatar: null })
       setFormErrors({})
-      setStep('signup')
+      setAvatarPreview(null)
       dispatch(clearError())
     }
   }, [isOpen, dispatch])
-
-  useEffect(() => {
-    if (otpSent) {
-      setStep('otp')
-      setOtpTimer(60)
-    }
-  }, [otpSent])
-
-  useEffect(() => {
-    if (otpTimer > 0) {
-      const timer = setTimeout(() => setOtpTimer(otpTimer - 1), 1000)
-      return () => clearTimeout(timer)
-    }
-  }, [otpTimer])
 
   const validateSignupForm = () => {
     const errors = {}
@@ -97,6 +80,55 @@ const Signup = ({ isOpen, onClose, onSwitchToLogin }) => {
     return Object.keys(errors).length === 0
   }
 
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        setFormErrors(prev => ({
+          ...prev,
+          avatar: 'Please select a valid image file'
+        }))
+        return
+      }
+      
+      if (file.size > 5 * 1024 * 1024) {
+        setFormErrors(prev => ({
+          ...prev,
+          avatar: 'Image size should be less than 5MB'
+        }))
+        return
+      }
+      
+      setFormData(prev => ({
+        ...prev,
+        avatar: file
+      }))
+      
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result)
+      }
+      reader.readAsDataURL(file)
+      
+      if (formErrors.avatar) {
+        setFormErrors(prev => ({
+          ...prev,
+          avatar: ''
+        }))
+      }
+    }
+  }
+
+  const handleRemoveAvatar = () => {
+    setFormData(prev => ({
+      ...prev,
+      avatar: null
+    }))
+    setAvatarPreview(null)
+    const fileInput = document.getElementById('avatar-input')
+    if (fileInput) fileInput.value = ''
+  }
+
   const handleSignupSubmit = async (e) => {
     e.preventDefault()
     
@@ -105,65 +137,38 @@ const Signup = ({ isOpen, onClose, onSwitchToLogin }) => {
     dispatch(signupStart())
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      let avatarData = null
       
-      // Mock successful signup - send OTP
-      dispatch(signupSuccess({ email: formData.email }))
-    } catch (err) {
-      dispatch(signupFailure('Failed to create account. Please try again.'))
-    }
-  }
-
-  const handleOtpSubmit = async (e) => {
-    e.preventDefault()
-    
-    const otpValue = otp.join('')
-    if (otpValue.length !== 6) {
-      dispatch(verifyOtpFailure('Please enter complete OTP'))
-      return
-    }
-
-    dispatch(verifyOtpStart())
-
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      // Mock successful OTP verification
-      if (otpValue === '123456') { // Mock OTP for demo
-        const mockUser = {
-          id: Date.now(),
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          avatar: `https://ui-avatars.com/api/?name=${formData.name}&background=0D8ABC&color=fff`
-        }
-        
-        dispatch(verifyOtpSuccess({
-          user: mockUser,
-          token: 'mock_jwt_token_' + Date.now()
-        }))
-        
-        onClose()
-      } else {
-        dispatch(verifyOtpFailure('Invalid OTP. Please try again.'))
+      // Convert avatar file to base64 if exists
+      if (formData.avatar) {
+        avatarData = await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result)
+          reader.onerror = reject
+          reader.readAsDataURL(formData.avatar)
+        })
       }
+      
+      const signupData = {
+        full_name: formData.name, // Changed from 'name' to 'full_name' to match backend
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,  // Added address field
+        password: formData.password,
+        avatar: avatarData // Send base64 data or null
+      }
+      
+      const result = await signupMutation(signupData).unwrap()
+      
+      dispatch(signupSuccess({
+        user: result.user,
+        token: result.access_token
+      }))
+      
+      onClose()
     } catch (err) {
-      dispatch(verifyOtpFailure('Failed to verify OTP. Please try again.'))
-    }
-  }
-
-  const handleResendOtp = async () => {
-    dispatch(resendOtpStart())
-    
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      dispatch(resendOtpSuccess())
-      setOtpTimer(60)
-      setOtp(['', '', '', '', '', ''])
-    } catch (err) {
-      dispatch(resendOtpFailure('Failed to resend OTP'))
+      const errorMessage = err.data?.detail || err.message || 'Failed to create account. Please try again.'
+      dispatch(signupFailure(errorMessage))
     }
   }
 
@@ -182,278 +187,264 @@ const Signup = ({ isOpen, onClose, onSwitchToLogin }) => {
     }
   }
 
-  const handleOtpChange = (index, value) => {
-    if (value.length <= 1 && /^[0-9]*$/.test(value)) {
-      const newOtp = [...otp]
-      newOtp[index] = value
-      setOtp(newOtp)
-      
-      // Auto focus next input
-      if (value && index < 5) {
-        const nextInput = document.getElementById(`otp-${index + 1}`)
-        if (nextInput) nextInput.focus()
-      }
-    }
-  }
-
-  const handleOtpKeyDown = (index, e) => {
-    if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      const prevInput = document.getElementById(`otp-${index - 1}`)
-      if (prevInput) prevInput.focus()
-    }
-  }
-
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white max-w-md w-full rounded-lg max-h-[90vh] overflow-y-auto">
-        <Card className="border-0 rounded-lg">
-          <CardHeader className="border-b">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-2xl">
-                {step === 'signup' ? 'Sign up for ShopZone' : 'Verify Your Email'}
-              </CardTitle>
-              <Button variant="ghost" size="sm" onClick={onClose}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="w-full max-w-md">
+        <Card>
+          <CardHeader className="relative">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute right-2 top-2"
+              onClick={onClose}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+            <CardTitle className="text-center">Create Account</CardTitle>
+            <p className="text-sm text-gray-600 text-center">
+              Join ShopZone today
+            </p>
           </CardHeader>
-
-          <CardContent className="p-6">
-            {step === 'signup' ? (
-              <form onSubmit={handleSignupSubmit} className="space-y-4">
-                {error && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                    <p className="text-sm text-red-600">{error}</p>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Full Name</label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input
-                      type="text"
-                      name="name"
-                      placeholder="Enter your full name"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      className={`pl-10 ${formErrors.name ? 'border-red-500' : ''}`}
-                      disabled={loading}
-                    />
-                  </div>
-                  {formErrors.name && (
-                    <p className="text-xs text-red-500">{formErrors.name}</p>
-                  )}
+          <CardContent>
+            <form onSubmit={handleSignupSubmit} className="space-y-4">
+              {error && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                  <p className="text-sm text-red-600">{error}</p>
                 </div>
+              )}
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Email</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input
-                      type="email"
-                      name="email"
-                      placeholder="Enter your email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      className={`pl-10 ${formErrors.email ? 'border-red-500' : ''}`}
-                      disabled={loading}
-                    />
-                  </div>
-                  {formErrors.email && (
-                    <p className="text-xs text-red-500">{formErrors.email}</p>
-                  )}
-                </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Phone Number</label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input
-                      type="tel"
-                      name="phone"
-                      placeholder="Enter your phone number"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      className={`pl-10 ${formErrors.phone ? 'border-red-500' : ''}`}
-                      disabled={loading}
-                    />
-                  </div>
-                  {formErrors.phone && (
-                    <p className="text-xs text-red-500">{formErrors.phone}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Password</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input
-                      type={showPassword ? "text" : "password"}
-                      name="password"
-                      placeholder="Create a password"
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      className={`pl-10 pr-10 ${formErrors.password ? 'border-red-500' : ''}`}
-                      disabled={loading}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                  {formErrors.password && (
-                    <p className="text-xs text-red-500">{formErrors.password}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Confirm Password</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input
-                      type={showConfirmPassword ? "text" : "password"}
-                      name="confirmPassword"
-                      placeholder="Confirm your password"
-                      value={formData.confirmPassword}
-                      onChange={handleInputChange}
-                      className={`pl-10 pr-10 ${formErrors.confirmPassword ? 'border-red-500' : ''}`}
-                      disabled={loading}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    >
-                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                  {formErrors.confirmPassword && (
-                    <p className="text-xs text-red-500">{formErrors.confirmPassword}</p>
-                  )}
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full"
-                  size="lg"
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <div className="flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Creating Account...
-                    </div>
-                  ) : (
-                    'Create Account'
-                  )}
-                </Button>
-
-                <div className="text-center">
-                  <span className="text-sm text-gray-600">Already have an account? </span>
-                  <Button
-                    type="button"
-                    variant="link"
-                    className="p-0 h-auto text-sm"
-                    onClick={onSwitchToLogin}
-                  >
-                    Login
-                  </Button>
-                </div>
-              </form>
-            ) : (
-              <form onSubmit={handleOtpSubmit} className="space-y-6">
-                {error && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-                    <p className="text-sm text-red-600">{error}</p>
-                  </div>
-                )}
-
-                <div className="text-center space-y-2">
-                  <p className="text-sm text-gray-600">
-                    We've sent a 6-digit verification code to
-                  </p>
-                  <p className="font-medium">{emailForOtp}</p>
-                  <p className="text-xs text-gray-500">
-                    For demo purposes, use: <Badge>123456</Badge>
-                  </p>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="flex justify-center space-x-2">
-                    {otp.map((digit, index) => (
-                      <Input
-                        key={index}
-                        id={`otp-${index}`}
-                        type="text"
-                        value={digit}
-                        onChange={(e) => handleOtpChange(index, e.target.value)}
-                        onKeyDown={(e) => handleOtpKeyDown(index, e)}
-                        className="w-12 h-12 text-center text-lg font-bold"
-                        maxLength={1}
-                        disabled={isVerifyingOtp}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Profile Picture <span className="text-gray-400">(Optional)</span>
+                </label>
+                <div className="flex items-center space-x-4">
+                  <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 border-2 border-gray-200">
+                    {avatarPreview ? (
+                      <img 
+                        src={avatarPreview} 
+                        alt="Avatar preview" 
+                        className="w-full h-full object-cover"
                       />
-                    ))}
+                    ) : (
+                      <img 
+                        src={defaultAvatarUrl} 
+                        alt="Default avatar" 
+                        className="w-full h-full object-cover"
+                      />
+                    )}
                   </div>
-
-                  {otpTimer > 0 ? (
-                    <p className="text-center text-sm text-gray-500">
-                      Resend OTP in {otpTimer} seconds
-                    </p>
-                  ) : (
-                    <div className="text-center">
+                  <div className="flex flex-col space-y-2">
+                    <label htmlFor="avatar-input">
                       <Button
                         type="button"
-                        variant="link"
-                        onClick={handleResendOtp}
-                        disabled={loading}
+                        variant="outline"
+                        size="sm"
+                        className="cursor-pointer"
+                        asChild
                       >
-                        Resend OTP
+                        <div className="flex items-center space-x-2">
+                          <Upload className="h-4 w-4" />
+                          <span>Upload</span>
+                        </div>
                       </Button>
-                    </div>
-                  )}
+                    </label>
+                    <input
+                      id="avatar-input"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarChange}
+                      className="hidden"
+                    />
+                    {avatarPreview && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleRemoveAvatar}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
                 </div>
+                {formErrors.avatar && (
+                  <p className="text-xs text-red-600">{formErrors.avatar}</p>
+                )}
+                <p className="text-xs text-gray-500">
+                  Upload a profile picture or we'll create one for you with your initials.
+                </p>
+              </div>
 
-                <Button
-                  type="submit"
-                  className="w-full"
-                  size="lg"
-                  disabled={isVerifyingOtp || otp.join('').length !== 6}
-                >
-                  {isVerifyingOtp ? (
-                    <div className="flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Verifying...
-                    </div>
-                  ) : (
-                    'Verify & Create Account'
-                  )}
-                </Button>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Full Name
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    type="text"
+                    name="name"
+                    placeholder="Enter your full name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    className={`pl-10 ${formErrors.name ? 'border-red-300' : ''}`}
+                  />
+                </div>
+                {formErrors.name && (
+                  <p className="text-xs text-red-600">{formErrors.name}</p>
+                )}
+              </div>
 
-                <div className="text-center">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    type="email"
+                    name="email"
+                    placeholder="Enter your email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className={`pl-10 ${formErrors.email ? 'border-red-300' : ''}`}
+                  />
+                </div>
+                {formErrors.email && (
+                  <p className="text-xs text-red-600">{formErrors.email}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Phone Number
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    type="tel"
+                    name="phone"
+                    placeholder="Enter your phone number"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    className={`pl-10 ${formErrors.phone ? 'border-red-300' : ''}`}
+                  />
+                </div>
+                {formErrors.phone && (
+                  <p className="text-xs text-red-600">{formErrors.phone}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Address <span className="text-gray-400">(Optional)</span>
+                </label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    type="text"
+                    name="address"
+                    placeholder="Enter your address"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    className={`pl-10 ${formErrors.address ? 'border-red-300' : ''}`}
+                  />
+                </div>
+                {formErrors.address && (
+                  <p className="text-xs text-red-600">{formErrors.address}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    placeholder="Create a password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    className={`pl-10 pr-10 ${formErrors.password ? 'border-red-300' : ''}`}
+                  />
                   <Button
                     type="button"
-                    variant="link"
-                    className="text-sm"
-                    onClick={() => {
-                      setStep('signup')
-                      dispatch(clearError())
-                    }}
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-2 top-1"
+                    onClick={() => setShowPassword(!showPassword)}
                   >
-                    ← Back to signup
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
-              </form>
-            )}
+                {formErrors.password && (
+                  <p className="text-xs text-red-600">{formErrors.password}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">
+                  Confirm Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    type={showConfirmPassword ? "text" : "password"}
+                    name="confirmPassword"
+                    placeholder="Confirm your password"
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange}
+                    className={`pl-10 pr-10 ${formErrors.confirmPassword ? 'border-red-300' : ''}`}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-2 top-1"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+                {formErrors.confirmPassword && (
+                  <p className="text-xs text-red-600">{formErrors.confirmPassword}</p>
+                )}
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full"
+                size="lg"
+                disabled={loading}
+              >
+                {loading ? (
+                  <div className="flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Creating Account...
+                  </div>
+                ) : (
+                  'Create Account'
+                )}
+              </Button>
+
+              <div className="text-center">
+                <span className="text-sm text-gray-600">Already have an account? </span>
+                <Button
+                  type="button"
+                  variant="link"
+                  className="p-0 h-auto text-sm"
+                  onClick={onSwitchToLogin}
+                >
+                  Login
+                </Button>
+              </div>
+            </form>
           </CardContent>
         </Card>
       </div>
