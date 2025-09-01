@@ -26,10 +26,16 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware
+# CORS middleware - Updated for production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
+    allow_origins=[
+        "http://localhost:5173", 
+        "http://localhost:3000", 
+        "http://127.0.0.1:5173",
+        "https://*.vercel.app",  # Add Vercel domains
+        os.getenv("FRONTEND_URL", "")  # Add your frontend URL from env
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -87,6 +93,9 @@ async def health_check():
             "error": str(e),
             "timestamp": "now()"
         }
+
+# Vercel serverless function handler
+handler = app
 
 if __name__ == "__main__":
     import uvicorn
