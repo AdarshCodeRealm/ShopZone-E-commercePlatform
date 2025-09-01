@@ -1,262 +1,250 @@
-# FastAPI Ecommerce Backend with Supabase
+# ShopZone Ecommerce API Server
 
-A complete FastAPI backend for an ecommerce website with Supabase integration, featuring user authentication, product management, shopping cart, and order processing.
+A complete FastAPI backend for an e-commerce platform with Supabase integration, designed for serverless deployment on Vercel.
 
-## Features
+## 🚀 Features
 
-- 🔐 **User Authentication** - JWT-based authentication with registration and login
-- 👤 **User Management** - Profile management and user data
-- 🛍️ **Product Management** - CRUD operations for products with categories and search
-- 🛒 **Shopping Cart** - Add, update, remove items from cart
-- 📦 **Order Management** - Create orders, track status, cancel orders
-- 🔒 **Security** - Row Level Security (RLS) with Supabase
-- 📝 **API Documentation** - Auto-generated with FastAPI/Swagger
+- **FastAPI Framework** - High-performance, easy-to-use, fast to code
+- **Supabase Integration** - Database, authentication, and storage
+- **JWT Authentication** - Secure user authentication and authorization
+- **RESTful API Design** - Clean, intuitive API endpoints
+- **Serverless Ready** - Optimized for Vercel deployment
+- **CORS Enabled** - Cross-origin resource sharing for frontend integration
+- **Pydantic Models** - Data validation and serialization
+- **Error Handling** - Comprehensive error handling and logging
 
-## Tech Stack
+## 📋 Prerequisites
 
-- **FastAPI** - Modern Python web framework
-- **Supabase** - Backend-as-a-Service with PostgreSQL
-- **Pydantic** - Data validation and serialization
-- **JWT** - JSON Web Tokens for authentication
-- **PostgreSQL** - Relational database via Supabase
-- **Uvicorn** - ASGI server
+- Python 3.12+
+- Supabase account and project
+- Vercel account (for deployment)
 
-## Project Structure
+## 🛠 Installation
 
-```
-fastapi-supabase/
-├── app/
-│   ├── __init__.py
-│   ├── auth.py              # Authentication utilities
-│   ├── database.py          # Supabase client configuration
-│   ├── models/
-│   │   ├── __init__.py
-│   │   ├── user.py          # User models
-│   │   ├── product.py       # Product models
-│   │   ├── cart.py          # Cart models
-│   │   ├── order.py         # Order models
-│   │   └── response.py      # Response models
-│   └── routers/
-│       ├── __init__.py
-│       ├── auth.py          # Authentication endpoints
-│       ├── users.py         # User management endpoints
-│       ├── products.py      # Product endpoints
-│       ├── cart.py          # Shopping cart endpoints
-│       └── orders.py        # Order management endpoints
-├── database_schema.sql      # Supabase database schema
-├── main.py                  # FastAPI application entry point
-├── requirements.txt         # Python dependencies
-├── .env                     # Environment variables
-└── README.md               # This file
-```
+### Local Development
 
-## Setup Instructions
-
-### 1. Clone and Setup Environment
-
+1. **Clone the repository**
 ```bash
-# Navigate to your project directory
-cd "fastapi supabase"
+git clone <repository-url>
+cd "Server - FastApi + Supabase"
+```
 
-# Install dependencies (already done if using the created virtual environment)
+2. **Create virtual environment**
+```bash
+python -m venv venv
+# Windows
+venv\Scripts\activate
+# macOS/Linux
+source venv/bin/activate
+```
+
+3. **Install dependencies**
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. Supabase Setup
-
-1. **Create a Supabase Project**
-   - Go to [supabase.com](https://supabase.com)
-   - Create a new project
-   - Note down your project URL and API keys
-
-2. **Setup Database**
-   - Go to your Supabase project dashboard
-   - Navigate to SQL Editor
-   - Copy and paste the contents of `database_schema.sql`
-   - Run the SQL to create tables, indexes, and sample data
-
-3. **Configure Environment Variables**
-   - Update the `.env` file with your Supabase credentials:
-
+4. **Environment Setup**
+Copy `.env.example` to `.env` and fill in your values:
 ```env
+# App Configuration
+APP_NAME=ShopZone Ecommerce API
+APP_VERSION=1.0.0
+
 # Supabase Configuration
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your-anon-key-here
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
 # JWT Configuration
-SECRET_KEY=your-very-secure-secret-key-here
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
+JWT_SECRET_KEY=your_jwt_secret_key
+JWT_ALGORITHM=HS256
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
 
-# Application Settings
-APP_NAME=Ecommerce API
-APP_VERSION=1.0.0
-DEBUG=True
+# Frontend URL (for CORS)
+FRONTEND_URL=https://your-frontend-domain.vercel.app
 ```
 
-### 3. Run the Application
-
+5. **Run the development server**
 ```bash
-# Using uvicorn directly
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-
-# Or run the main.py file
 python main.py
 ```
 
-The API will be available at:
-- **API**: http://localhost:8000
-- **Documentation**: http://localhost:8000/docs
-- **Alternative Docs**: http://localhost:8000/redoc
+The API will be available at `http://localhost:8000`
+- Interactive API docs: `http://localhost:8000/docs`
+- ReDoc documentation: `http://localhost:8000/redoc`
 
-## API Endpoints
+## 🚀 Deployment
+
+### Vercel Deployment
+
+1. **Install Vercel CLI**
+```bash
+npm install -g vercel
+```
+
+2. **Login to Vercel**
+```bash
+vercel login
+```
+
+3. **Deploy**
+```bash
+vercel --prod
+```
+
+4. **Environment Variables**
+Set these environment variables in your Vercel dashboard:
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `JWT_SECRET_KEY`
+- `JWT_ALGORITHM`
+- `JWT_ACCESS_TOKEN_EXPIRE_MINUTES`
+- `FRONTEND_URL`
+
+## 📁 Project Structure
+
+```
+Server - FastApi + Supabase/
+├── api/
+│   └── index.py                 # Vercel serverless entry point
+├── app/
+│   ├── __init__.py
+│   ├── auth.py                  # Authentication utilities
+│   ├── database.py              # Database connection
+│   ├── models/                  # Pydantic models
+│   │   ├── user.py
+│   │   ├── product.py
+│   │   ├── cart.py
+│   │   ├── order.py
+│   │   └── response.py
+│   ├── routers/                 # API route handlers
+│   │   ├── auth.py              # Authentication routes
+│   │   ├── users.py             # User management
+│   │   ├── products.py          # Product catalog
+│   │   ├── cart.py              # Shopping cart
+│   │   ├── orders.py            # Order management
+│   │   └── payments.py          # Payment processing
+│   └── utils/
+│       └── storage.py           # File storage utilities
+├── main.py                      # FastAPI application
+├── requirements.txt             # Python dependencies
+├── vercel.json                  # Vercel configuration
+├── database_schema.sql          # Database schema
+└── README.md                    # This file
+```
+
+## 🔗 API Endpoints
 
 ### Authentication
-- `POST /api/v1/auth/register` - Register new user
+- `POST /api/v1/auth/register` - User registration
 - `POST /api/v1/auth/login` - User login
-
-### Users
-- `GET /api/v1/users/me` - Get current user profile
-- `PUT /api/v1/users/me` - Update current user profile
-- `GET /api/v1/users/profile/{user_id}` - Get user profile by ID
+- `POST /api/v1/auth/refresh` - Refresh access token
+- `POST /api/v1/auth/logout` - User logout
 
 ### Products
-- `GET /api/v1/products/` - Get all products (with filters)
-- `GET /api/v1/products/{product_id}` - Get specific product
-- `POST /api/v1/products/` - Create new product (admin)
-- `PUT /api/v1/products/{product_id}` - Update product (admin)
-- `DELETE /api/v1/products/{product_id}` - Delete product (admin)
-- `GET /api/v1/products/categories/list` - Get all categories
+- `GET /api/v1/products` - Get all products
+- `GET /api/v1/products/{id}` - Get product by ID
+- `GET /api/v1/products/categories` - Get product categories
+- `GET /api/v1/products/category/{category}` - Get products by category
 
-### Shopping Cart
-- `GET /api/v1/cart/` - Get user's cart
-- `POST /api/v1/cart/items` - Add item to cart
-- `PUT /api/v1/cart/items/{item_id}` - Update cart item
-- `DELETE /api/v1/cart/items/{item_id}` - Remove item from cart
+### Cart
+- `GET /api/v1/cart` - Get user's cart
+- `POST /api/v1/cart/add` - Add item to cart
+- `PUT /api/v1/cart/update` - Update cart item
+- `DELETE /api/v1/cart/remove/{item_id}` - Remove item from cart
 - `DELETE /api/v1/cart/clear` - Clear entire cart
 
 ### Orders
-- `GET /api/v1/orders/` - Get user's orders
-- `GET /api/v1/orders/{order_id}` - Get specific order
-- `POST /api/v1/orders/` - Create new order
-- `POST /api/v1/orders/from-cart` - Create order from cart
-- `PUT /api/v1/orders/{order_id}/cancel` - Cancel order
+- `GET /api/v1/orders` - Get user's orders
+- `POST /api/v1/orders/create` - Create new order
+- `GET /api/v1/orders/{id}` - Get order by ID
+- `PUT /api/v1/orders/{id}/status` - Update order status
 
-## Usage Examples
+### Users
+- `GET /api/v1/users/profile` - Get user profile
+- `PUT /api/v1/users/profile` - Update user profile
+- `POST /api/v1/users/upload-avatar` - Upload profile picture
 
-### 1. Register a User
-```bash
-curl -X POST "http://localhost:8000/api/v1/auth/register" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "password": "password123",
-    "full_name": "John Doe",
-    "phone": "+1234567890",
-    "address": "123 Main St, City, State"
-  }'
-```
+### Payments
+- `POST /api/v1/payments/process` - Process payment
+- `GET /api/v1/payments/history` - Get payment history
 
-### 2. Login
-```bash
-curl -X POST "http://localhost:8000/api/v1/auth/login" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "password": "password123"
-  }'
-```
+## 🧪 Health Checks
 
-### 3. Get Products
-```bash
-curl -X GET "http://localhost:8000/api/v1/products/"
-```
+- `GET /` - API welcome message
+- `GET /health` - Health check endpoint
+- `GET /api/v1/test` - Test API functionality
 
-### 4. Add Item to Cart (requires authentication)
-```bash
-curl -X POST "http://localhost:8000/api/v1/cart/items" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -d '{
-    "product_id": "product-uuid-here",
-    "quantity": 2
-  }'
-```
+## 🔧 Technologies Used
 
-## Database Schema
+- **FastAPI** - Modern, fast web framework for building APIs
+- **Supabase** - Backend-as-a-Service with PostgreSQL
+- **Pydantic** - Data validation using Python type annotations
+- **JWT** - JSON Web Token for authentication
+- **Mangum** - ASGI adapter for running on AWS Lambda/Vercel
+- **SQLAlchemy** - SQL toolkit and ORM
+- **Uvicorn** - ASGI server implementation
+- **Python-Jose** - JavaScript Object Signing and Encryption library
+- **Passlib** - Password hashing library
+- **Pillow** - Image processing library
 
-The application uses the following main tables:
+## 🛡 Security Features
 
-- **users** - User accounts and profiles
-- **products** - Product catalog
-- **cart_items** - Shopping cart items
-- **orders** - Customer orders
-- **order_items** - Items within each order
+- JWT-based authentication
+- Password hashing with bcrypt
+- CORS protection
+- Input validation with Pydantic
+- SQL injection prevention
+- Rate limiting ready
 
-All tables include proper relationships, constraints, and indexes for optimal performance.
+## 📝 Development
 
-## Security Features
+### Adding New Routes
 
-- **JWT Authentication** - Secure token-based authentication
-- **Password Hashing** - Bcrypt for secure password storage
-- **Row Level Security** - Supabase RLS policies for data isolation
-- **Input Validation** - Pydantic models for request validation
-- **CORS** - Configurable cross-origin resource sharing
-
-## Development
-
-### Adding New Endpoints
-1. Create/update models in `app/models/`
-2. Add router functions in `app/routers/`
+1. Create route handler in `app/routers/`
+2. Define Pydantic models in `app/models/`
 3. Include router in `main.py`
+4. Update this README
 
-### Database Migrations
-When adding new tables or modifying schema:
-1. Update `database_schema.sql`
-2. Run the new SQL in Supabase SQL Editor
-3. Update corresponding Pydantic models
+### Database Schema
 
-## Production Deployment
+Run the SQL commands in `database_schema.sql` to set up your Supabase database tables.
 
-### Environment Variables
-Make sure to set secure values for production:
-- Use a strong `SECRET_KEY`
-- Set `DEBUG=False`
-- Configure proper `CORS` origins
-- Use environment-specific Supabase credentials
-
-### Security Considerations
-- Enable HTTPS in production
-- Set up proper CORS policies
-- Use strong passwords and JWT secrets
-- Monitor and log API usage
-- Implement rate limiting if needed
-
-## Troubleshooting
+## 🐛 Troubleshooting
 
 ### Common Issues
 
-1. **Supabase Connection Error**
-   - Check your SUPABASE_URL and API keys
-   - Ensure your Supabase project is active
+1. **Import Errors**: Ensure all dependencies are installed
+2. **Database Connection**: Check Supabase credentials
+3. **CORS Issues**: Verify frontend URL in environment variables
+4. **Deployment Failures**: Check Vercel logs and environment variables
 
-2. **Authentication Errors**
-   - Verify JWT token is included in Authorization header
-   - Check token expiration time
+### Vercel Deployment Issues
 
-3. **Database Errors**
-   - Ensure database schema is properly set up
-   - Check Supabase RLS policies are correctly configured
+- Ensure Python version matches vercel.json (3.12)
+- Check that all environment variables are set
+- Verify Mangum is included in requirements.txt
+- Check function timeout limits
 
-## Contributing
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
-## License
+## 📞 Support
 
-This project is licensed under the MIT License.
+For support and questions, please contact the development team or create an issue in the repository.
+
+---
+
+**Last Updated**: September 1, 2025
+**Python Version**: 3.12+
+**FastAPI Version**: 0.104.1+

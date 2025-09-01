@@ -1,3 +1,5 @@
+from fastapi import FastAPI
+from mangum import Mangum
 import sys
 import os
 
@@ -9,6 +11,5 @@ sys.path.insert(0, parent_dir)
 # Import the FastAPI app
 from main import app
 
-# Vercel requires this exact export name
-def handler(request):
-    return app
+# Create the handler for Vercel using Mangum
+handler = Mangum(app)
