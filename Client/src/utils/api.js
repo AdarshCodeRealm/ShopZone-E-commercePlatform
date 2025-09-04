@@ -1,5 +1,5 @@
 // API utilities for avatar and profile management
-const API_BASE_URL = '/api';
+import { API_CONFIG } from '../config/api.js';
 
 // Get authorization header
 const getAuthHeader = () => {
@@ -14,7 +14,7 @@ export const avatarAPI = {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch(`${API_BASE_URL}/users/avatar/upload`, {
+    const response = await fetch(`${API_CONFIG.BASE_URL}/users/avatar/upload`, {
       method: 'POST',
       headers: getAuthHeader(),
       body: formData,
@@ -33,7 +33,7 @@ export const avatarAPI = {
     const formData = new FormData();
     formData.append('base64_data', base64Data);
 
-    const response = await fetch(`${API_BASE_URL}/users/avatar/upload-base64`, {
+    const response = await fetch(`${API_CONFIG.BASE_URL}/users/avatar/upload-base64`, {
       method: 'POST',
       headers: getAuthHeader(),
       body: formData,
@@ -49,7 +49,7 @@ export const avatarAPI = {
 
   // Delete avatar
   delete: async () => {
-    const response = await fetch(`${API_BASE_URL}/users/avatar`, {
+    const response = await fetch(`${API_CONFIG.BASE_URL}/users/avatar`, {
       method: 'DELETE',
       headers: getAuthHeader(),
     });
@@ -67,7 +67,7 @@ export const avatarAPI = {
 export const profileAPI = {
   // Get user profile
   getProfile: async () => {
-    const response = await fetch(`${API_BASE_URL}/users/profile`, {
+    const response = await fetch(`${API_CONFIG.BASE_URL}/users/profile`, {
       headers: getAuthHeader(),
     });
 
@@ -81,7 +81,7 @@ export const profileAPI = {
 
   // Update profile
   updateProfile: async (profileData) => {
-    const response = await fetch(`${API_BASE_URL}/users/profile`, {
+    const response = await fetch(`${API_CONFIG.BASE_URL}/users/profile`, {
       method: 'PUT',
       headers: {
         ...getAuthHeader(),
