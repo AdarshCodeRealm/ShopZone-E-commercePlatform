@@ -8,15 +8,30 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+# Environment variable validation
+REQUIRED_ENV_VARS = [
+    "SUPABASE_URL",
+    "SUPABASE_ANON_KEY"
+]
+
+missing_vars = [var for var in REQUIRED_ENV_VARS if not os.getenv(var)]
+ENV_VARS_VALID = len(missing_vars) == 0
+
 # Add error handling for imports
+IMPORTS_SUCCESS = True
+IMPORT_ERROR = None
 try:
     from app.routers import auth, products, orders, users, cart, payments
     from app.database import get_supabase_client
     from app.models.response import ErrorResponse
-    IMPORTS_SUCCESS = True
 except ImportError as e:
     print(f"Import error: {e}")
     IMPORTS_SUCCESS = False
+    IMPORT_ERROR = str(e)
+except Exception as e:
+    print(f"General import error: {e}")
+    IMPORTS_SUCCESS = False
+    IMPORT_ERROR = str(e)
 
 # Create FastAPI app without lifespan for serverless compatibility
 app = FastAPI(
@@ -51,9 +66,13 @@ async def root():
         "redoc_url": "/redoc",
         "status": "running",
         "imports": "success" if IMPORTS_SUCCESS else "failed",
+        "import_error": IMPORT_ERROR if not IMPORTS_SUCCESS else None,
+        "env_vars_valid": ENV_VARS_VALID,
+        "missing_env_vars": missing_vars if not ENV_VARS_VALID else None,
         "env_vars": {
             "supabase_url": bool(os.getenv("SUPABASE_URL")),
-            "supabase_key": bool(os.getenv("SUPABASE_ANON_KEY"))
+            "supabase_key": bool(os.getenv("SUPABASE_ANON_KEY")),
+            "jwt_secret": bool(os.getenv("JWT_SECRET_KEY"))
         }
     }
 
@@ -65,6 +84,9 @@ async def test_api():
         "timestamp": "2025-01-02",
         "python_version": sys.version,
         "imports_successful": IMPORTS_SUCCESS,
+        "env_vars_valid": ENV_VARS_VALID,
+        "import_error": IMPORT_ERROR if not IMPORTS_SUCCESS else None,
+        "missing_env_vars": missing_vars if not ENV_VARS_VALID else None,
         "endpoints": {
             "products": "/api/v1/products",
             "categories": "/api/v1/products/categories",
@@ -75,10 +97,19 @@ async def test_api():
 
 @app.get("/health")
 async def health_check():
+    if not ENV_VARS_VALID:
+        return {
+            "status": "unhealthy",
+            "error": "Missing required environment variables",
+            "missing_vars": missing_vars,
+            "imports": "success" if IMPORTS_SUCCESS else "failed"
+        }
+    
     if not IMPORTS_SUCCESS:
         return {
             "status": "unhealthy",
             "error": "Import failed",
+            "import_error": IMPORT_ERROR,
             "imports": "failed"
         }
     
@@ -101,8 +132,8 @@ async def health_check():
             "timestamp": "2025-01-02"
         }
 
-# Include routers only if imports are successful
-if IMPORTS_SUCCESS:
+# Include routers only if imports are successful and env vars are valid
+if IMPORTS_SUCCESS and ENV_VARS_VALID:
     try:
         app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
         app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])
